@@ -41,6 +41,7 @@ import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import android.media.MediaScannerConnection
 
 /**
  * Render manager
@@ -428,57 +429,79 @@ class RenderManager(
         mMainHandler.post {
             mCaptureDataCb?.onBegin()
         }
-        val date = mDateFormat.format(System.currentTimeMillis())
-        val title = savePath ?: "IMG_AUSBC_$date"
+        val date = System.currentTimeMillis()
+        val title = savePath ?: "IMG_AUSBC_${mDateFormat.format(date)}"
         val displayName = savePath ?: "$title.jpg"
-        val path = savePath ?: "$mCameraDir/$displayName"
         val width = mWidth
         val height = mHeight
-        // 写入文件
-        // glReadPixels读取的是大端数据，但是我们保存的是小端
-        // 故需要将图片上下颠倒为正
-        var fos: FileOutputStream? = null
-        try {
-            fos = FileOutputStream(path)
-            GLBitmapUtils.transFrameBufferToBitmap(mFBOBufferId, width, height).apply {
-                compress(Bitmap.CompressFormat.JPEG, 100, fos)
-                recycle()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android 10 and above
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.TITLE, title)
+                put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(MediaStore.Images.Media.DATE_TAKEN, date)
+                put(MediaStore.Images.Media.WIDTH, width)
+                put(MediaStore.Images.Media.HEIGHT, height)
+                put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_DCIM)
             }
-        } catch (e: IOException) {
-            mMainHandler.post {
-                mCaptureDataCb?.onError(e.localizedMessage)
+
+            val resolver = mContext.contentResolver
+            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+
+            uri?.let {
+                try {
+                    resolver.openOutputStream(uri).use { outputStream ->
+                        GLBitmapUtils.transFrameBufferToBitmap(mFBOBufferId, width, height).apply {
+                            compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+                            recycle()
+                        }
+                    }
+                    mMainHandler.post {
+                        mCaptureDataCb?.onComplete(uri.toString())
+                    }
+                } catch (e: IOException) {
+                    Logger.e(TAG, "Failed to write file, err = ${e.localizedMessage}", e)
+                    mMainHandler.post {
+                        mCaptureDataCb?.onError(e.localizedMessage)
+                    }
+                }
+            } ?: run {
+                Logger.e(TAG, "Failed to insert file into MediaStore")
+                mMainHandler.post {
+                    mCaptureDataCb?.onError("Failed to insert file into MediaStore")
+                }
             }
-            Logger.e(TAG, "Failed to write file, err = ${e.localizedMessage}", e)
-        } finally {
+        } else {
+            // Below Android 10
+            val path = savePath ?: "$mCameraDir/$displayName"
+            var fos: FileOutputStream? = null
             try {
-                fos?.close()
+                fos = FileOutputStream(path)
+                GLBitmapUtils.transFrameBufferToBitmap(mFBOBufferId, width, height).apply {
+                    compress(Bitmap.CompressFormat.JPEG, 100, fos)
+                    recycle()
+                }
             } catch (e: IOException) {
                 Logger.e(TAG, "Failed to write file, err = ${e.localizedMessage}", e)
+                mMainHandler.post {
+                    mCaptureDataCb?.onError(e.localizedMessage)
+                }
+            } finally {
+                try {
+                    fos?.close()
+                } catch (e: IOException) {
+                    Logger.e(TAG, "Failed to close FileOutputStream, err = ${e.localizedMessage}", e)
+                }
             }
-        }
-        //Judge whether it is saved successfully
-        //Update gallery if successful
-        val file = File(path)
-        if (file.length() == 0L) {
-            Logger.e(TAG, "Failed to save file $path")
-            file.delete()
-            mCaptureState.set(false)
-            return
-        }
-        val values = ContentValues()
-        values.put(MediaStore.Images.ImageColumns.TITLE, title)
-        values.put(MediaStore.Images.ImageColumns.DISPLAY_NAME, displayName)
-        values.put(MediaStore.Images.ImageColumns.DATA, path)
-        values.put(MediaStore.Images.ImageColumns.DATE_TAKEN, date)
-        values.put(MediaStore.Images.ImageColumns.WIDTH, width)
-        values.put(MediaStore.Images.ImageColumns.HEIGHT, height)
-        mContext.contentResolver?.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-        mMainHandler.post {
-            mCaptureDataCb?.onComplete(path)
-        }
-        mCaptureState.set(false)
-        if (Utils.debugCamera) {
-            Logger.i(TAG, "captureImageInternal save path = $path")
+
+            // Notify the MediaScanner
+            MediaScannerConnection.scanFile(mContext, arrayOf(path), null, null)
+
+            mMainHandler.post {
+                mCaptureDataCb?.onComplete(path)
+            }
         }
     }
 
