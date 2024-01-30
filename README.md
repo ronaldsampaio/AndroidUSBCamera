@@ -9,7 +9,14 @@
 
 &emsp;[@ Example showing](https://live.csdn.net/v/226993)
 
-
+Versions
+-------
+release 3.3.3-alpha Fixes the photo capturing bug on the original 3.3.3 version from the library. Use it like the original but changing the following
+```groovy
+dependencies {
+    implementation "com.github.ronaldsampaio.AndroidUSBCamera:libausbc:v3.3.3-alpha"
+}
+```
 
 Feature
 -------
