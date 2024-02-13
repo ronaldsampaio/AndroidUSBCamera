@@ -210,6 +210,20 @@ class CameraClient internal constructor(builder: Builder) : IPreviewDataCallBack
         }
     }
 
+    fun openCamera(surfaceTexture : SurfaceTexture, width: Int, height: Int){
+        initEncodeProcessor()
+        val listener = object : RenderManager.CameraSurfaceTextureListener {
+            override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture?) {
+                surfaceTexture?.let {
+                    mCamera?.startPreview(mRequest!!, it)
+                    mCamera?.addPreviewDataCallBack(this@CameraClient)
+                }
+            }
+        }
+        mRenderManager?.startRenderScreen(width, height, Surface(surfaceTexture), listener)
+        mRenderManager?.setRotateType(mDefaultRotateType)
+    }
+
     /**
      * Close camera
      */
