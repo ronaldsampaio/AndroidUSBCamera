@@ -129,34 +129,34 @@ class CameraClient internal constructor(builder: Builder) : IPreviewDataCallBack
             if (data.size != width * height * 3 /2) {
                 return
             }
-            val yuv = YuvImage(data, ImageFormat.NV21, width, height, null)
-            val out = ByteArrayOutputStream()
-            yuv.compressToJpeg(Rect(0, 0, width, height), 100, out)
-            val imageBytes = out.toByteArray()
-            var bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-            val matrix = Matrix()
-            Log.d("CameraAPIDataBITWID", bitmap.width.toString())
-            Log.d("CameraAPIDataBITHEI", bitmap.height.toString())
-            bitmap =
-                Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-            bitmap = Bitmap.createScaledBitmap(
-                bitmap,
-                640,
-                640,
-                true
-            )
-            val canvas = android.graphics.Canvas(bitmap)
-            val bkgPaint = Paint().apply {
-                color = android.graphics.Color.RED
-            }
-            val rect = Rect(2, 2, 100, 100)
-            canvas.drawRect(rect, bkgPaint)
-            val outStream = ByteArrayOutputStream()
-            if (bitmap != null) {
-                bitmap.compress(Bitmap.CompressFormat.JPEG,100,outStream)
-            }
-            val byteAgain = outStream.toByteArray()
-            mVideoProcess?.putRawData(RawData(byteAgain, byteAgain.size))
+//            val yuv = YuvImage(data, ImageFormat.NV21, width, height, null)
+//            val out = ByteArrayOutputStream()
+//            yuv.compressToJpeg(Rect(0, 0, width, height), 100, out)
+//            val imageBytes = out.toByteArray()
+//            var bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+//            val matrix = Matrix()
+//            Log.d("CameraAPIDataBITWID", bitmap.width.toString())
+//            Log.d("CameraAPIDataBITHEI", bitmap.height.toString())
+//            bitmap =
+//                Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+//            bitmap = Bitmap.createScaledBitmap(
+//                bitmap,
+//                1280,
+//                720,
+//                true
+//            )
+//            val canvas = android.graphics.Canvas(bitmap)
+//            val bkgPaint = Paint().apply {
+//                color = android.graphics.Color.RED
+//            }
+//            val rect = Rect(2, 2, 100, 100)
+//            canvas.drawRect(rect, bkgPaint)
+//            val outStream = ByteArrayOutputStream()
+//            if (bitmap != null) {
+//                bitmap.compress(Bitmap.CompressFormat.JPEG,100,outStream)
+//            }
+//            val byteAgain = outStream.toByteArray()
+            mVideoProcess?.putRawData(RawData(it, it.size))
         }
     }
 
@@ -252,7 +252,7 @@ class CameraClient internal constructor(builder: Builder) : IPreviewDataCallBack
             override fun onSurfaceTextureAvailable(surfaceTexture: SurfaceTexture?) {
                 surfaceTexture?.let {
                     mCamera?.startPreview(mRequest!!, it)
-                    mCamera?.addPreviewDataCallBack(this@CameraClient)
+//                    mCamera?.addPreviewDataCallBack(this@CameraClient)
                 }
             }
         }
