@@ -16,9 +16,17 @@
 package com.jiangdg.ausbc
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageFormat
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.SurfaceTexture
+import android.graphics.YuvImage
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.Surface
 import androidx.annotation.MainThread
 import androidx.lifecycle.Lifecycle
@@ -51,6 +59,7 @@ import com.jiangdg.ausbc.widget.AspectRatioTextureView
 import com.jiangdg.ausbc.widget.IAspectRatio
 import com.jiangdg.usb.USBMonitor
 import com.jiangdg.uvc.UVCCamera
+import java.io.ByteArrayOutputStream
 import kotlin.math.abs
 
 /**
@@ -120,7 +129,34 @@ class CameraClient internal constructor(builder: Builder) : IPreviewDataCallBack
             if (data.size != width * height * 3 /2) {
                 return
             }
-            mVideoProcess?.putRawData(RawData(it, it.size))
+            val yuv = YuvImage(data, ImageFormat.NV21, width, height, null)
+            val out = ByteArrayOutputStream()
+            yuv.compressToJpeg(Rect(0, 0, width, height), 100, out)
+            val imageBytes = out.toByteArray()
+            var bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+            val matrix = Matrix()
+            Log.d("CameraAPIDataBITWID", bitmap.width.toString())
+            Log.d("CameraAPIDataBITHEI", bitmap.height.toString())
+            bitmap =
+                Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+            bitmap = Bitmap.createScaledBitmap(
+                bitmap,
+                640,
+                640,
+                true
+            )
+            val canvas = android.graphics.Canvas(bitmap)
+            val bkgPaint = Paint().apply {
+                color = android.graphics.Color.RED
+            }
+            val rect = Rect(2, 2, 100, 100)
+            canvas.drawRect(rect, bkgPaint)
+            val outStream = ByteArrayOutputStream()
+            if (bitmap != null) {
+                bitmap.compress(Bitmap.CompressFormat.JPEG,100,outStream)
+            }
+            val byteAgain = outStream.toByteArray()
+            mVideoProcess?.putRawData(RawData(byteAgain, byteAgain.size))
         }
     }
 
